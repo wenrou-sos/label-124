@@ -143,13 +143,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { coaches, reviews } from '../mock'
 
 const route = useRoute()
 const coachId = Number(route.params.coachId)
-const coach = ref(null)
+
+const coach = computed(() => coaches.find((c) => c.id === coachId) || coaches[0])
 
 const ratingDims = [
   { key: 'attitude', label: '教学态度' },
@@ -166,10 +167,6 @@ function getAvgRating(review) {
   const vals = Object.values(review.ratings)
   return vals.reduce((a, b) => a + b, 0) / vals.length
 }
-
-onMounted(() => {
-  coach.value = coaches.find((c) => c.id === coachId) || coaches[0]
-})
 </script>
 
 <style scoped>

@@ -178,6 +178,7 @@ import {
   generateSchedule,
   addCourse,
   formatDate,
+  hasBookedCourse,
   MESSAGE_PRESETS,
 } from '../mock'
 
@@ -223,6 +224,10 @@ function handleSlotClick(slot) {
     showToast('该时段教练休息')
     return
   }
+  if (hasBookedCourse(coachId, selectedDate.value, slot.id)) {
+    showToast('您已预约该时段，请勿重复预约')
+    return
+  }
   selectedSlot.value = slot
   selectedMessage.value = ''
   customMessage.value = ''
@@ -244,7 +249,7 @@ async function confirmBooking() {
   await new Promise((r) => setTimeout(r, 800))
 
   const message = selectedMessage.value || customMessage.value
-  addCourse({
+  const newCourse = addCourse({
     coachId: coach.value.id,
     coachName: coach.value.name,
     coachAvatar: coach.value.avatar,
@@ -258,10 +263,25 @@ async function confirmBooking() {
 
   bookingLoading.value = false
   showMessagePopup.value = false
-  showSuccessToast('预约成功')
-  setTimeout(() => {
-    router.push('/courses')
-  }, 1000)
+
+  if (newCourse) {
+    const day = schedule.value.find((d) => d.date === selectedDate.value)
+    if (day) {
+      const slot = day.slots.find((s) => s.id === selectedSlot.value.id)
+      if (slot) {
+        slot.bookedCount = Math.min(slot.maxCount, slot.bookedCount + 1)
+        if (slot.bookedCount >= slot.maxCount) {
+          slot.status = 'full'
+        }
+      }
+    }
+    showSuccessToast('预约成功')
+    setTimeout(() => {
+      router.push('/courses')
+    }, 1000)
+  } else {
+    showToast('预约失败，该时段可能已被预约')
+  }
 }
 
 onMounted(() => {

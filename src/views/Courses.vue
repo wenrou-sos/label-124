@@ -126,7 +126,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { showDialog, showToast, showConfirmDialog } from 'vant'
-import { courses, cancelCourse, isWithinCancelWindow } from '../mock'
+import { courses, cancelCourse, isWithinCancelWindow, coaches } from '../mock'
 
 const router = useRouter()
 
@@ -189,9 +189,11 @@ function formatDatePart(dateStr) {
 }
 
 function handleCall(course) {
+  const coach = coaches.find((c) => c.id === course.coachId)
+  const phone = coach ? coach.phone : '暂无电话'
   showDialog({
     title: '联系教练',
-    message: `${course.coachName}：139****${Math.floor(1000 + Math.random() * 9000)}`,
+    message: `${course.coachName}：${phone}`,
     confirmButtonText: '拨打',
     showCancelButton: true,
   })

@@ -457,7 +457,20 @@ export const bookedSimulators = reactive([
   },
 ])
 
+export function hasBookedCourse(coachId, date, timeSlotId) {
+  return courses.some(
+    (c) =>
+      c.coachId === coachId &&
+      c.date === date &&
+      c.timeSlot.id === timeSlotId &&
+      c.status !== 'cancelled'
+  )
+}
+
 export function addCourse(course) {
+  if (hasBookedCourse(course.coachId, course.date, course.timeSlot.id)) {
+    return null
+  }
   const newCourse = {
     id: Date.now(),
     ...course,
@@ -486,19 +499,54 @@ export function markReviewed(courseId) {
 }
 
 export function addReview(review) {
-  reviews.unshift({
+  const newReview = {
     id: Date.now(),
     date: getDateStr(0),
     ...review,
-  })
+  }
+  reviews.unshift(newReview)
+  const coach = coaches.find((c) => c.id === review.coachId)
+  if (coach) {
+    const coachReviews = reviews.filter((r) => r.coachId === review.coachId)
+    coach.ratingCount = coachReviews.length
+    const dims = ['attitude', 'professionalism', 'patience', 'punctuality']
+    const dimSums = { attitude: 0, professionalism: 0, patience: 0, punctuality: 0 }
+    coachReviews.forEach((r) => {
+      dims.forEach((d) => {
+        dimSums[d] += r.ratings[d] || 0
+      })
+    })
+    dims.forEach((d) => {
+      coach.ratings[d] = Number((dimSums[d] / coachReviews.length).toFixed(1))
+    })
+    const totalAvg = dims.reduce((sum, d) => sum + coach.ratings[d], 0) / dims.length
+    coach.rating = Number(totalAvg.toFixed(1))
+  }
+}
+
+export function hasBookedSimulator(date, slotStart) {
+  return bookedSimulators.some(
+    (s) => s.date === date && s.slot.start === slotStart && s.status !== 'cancelled')
 }
 
 export function addBookedSimulator(sim) {
-  bookedSimulators.unshift({
+  if (hasBookedSimulator(sim.date, sim.slot.start)) {
+    return null
+  }
+  const newBooking = {
     id: 'sim-booked-' + Date.now(),
     ...sim,
     status: 'upcoming',
-  })
+  }
+  bookedSimulators.unshift(newBooking)
+  const daySession = simulatorSessions.find((s) => s.date === sim.date)
+  if (daySession) {
+    const slot = daySession.slots.find((sl) => sl.start === sim.slot.start)
+    if (slot && slot.status === 'available') {
+      slot.status = 'full'
+    }
+  }
+  return newBooking
 }
 
 export function formatDate(dateStr) {

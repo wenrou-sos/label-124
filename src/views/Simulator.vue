@@ -228,6 +228,7 @@ import {
   simulatorSessions,
   bookedSimulators,
   addBookedSimulator,
+  hasBookedSimulator,
 } from '../mock'
 
 const selectedSession = ref(simulatorSessions[0]?.id || '')
@@ -276,6 +277,10 @@ function handleSlotClick(slot) {
     showToast('该时段不开放')
     return
   }
+  if (hasBookedSimulator(currentSession.value.date, slot.start)) {
+    showToast('您已预约该时段，请勿重复预约')
+    return
+  }
   selectedSlot.value = slot
   showConfirm.value = true
 }
@@ -284,14 +289,18 @@ async function doConfirm() {
   if (!selectedSlot.value || !currentSession.value) return
   confirmLoading.value = true
   await new Promise((r) => setTimeout(r, 900))
-  addBookedSimulator({
+  const newBooking = addBookedSimulator({
     date: currentSession.value.date,
     slot: { start: selectedSlot.value.start, end: selectedSlot.value.end },
     price: selectedSlot.value.price,
   })
   confirmLoading.value = false
   showConfirm.value = false
-  showSuccessToast('预约支付成功')
+  if (newBooking) {
+    showSuccessToast('预约支付成功')
+  } else {
+    showToast('预约失败，该时段可能已被预约')
+  }
 }
 </script>
 
