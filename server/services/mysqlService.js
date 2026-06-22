@@ -64,11 +64,14 @@ function formatReview(row) {
   return {
     id: row.id,
     coachId: row.coach_id,
+    coachName: row.coach_name,
+    coachAvatar: row.coach_avatar,
     studentId: row.student_id,
     studentName: row.student_name,
     avatar: row.student_avatar,
     date: row.created_at ? row.created_at.split('T')[0] : '',
     courseId: row.course_id,
+    subject: row.subject,
     ratings: {
       attitude: row.attitude,
       professionalism: row.professionalism,
@@ -228,19 +231,11 @@ const coachService = {
     return schedule
   },
 
-  async getReviews(coachId, page = 1, pageSize = 10) {
-    const offset = (page - 1) * pageSize
+  async getReviews(coachId) {
     const rows = await db.query(`
-      SELECT * FROM reviews WHERE coach_id = ?
-      ORDER BY created_at DESC LIMIT ? OFFSET ?
-    `, [coachId, pageSize, offset])
-    const total = await db.getOne('SELECT COUNT(*) as cnt FROM reviews WHERE coach_id = ?', [coachId])
-    return {
-      list: rows.map(formatReview),
-      total: total.cnt,
-      page,
-      pageSize,
-    }
+      SELECT * FROM reviews WHERE coach_id = ? ORDER BY created_at DESC
+    `, [coachId])
+    return rows.map(formatReview)
   },
 
   async updateRating(coachId) {
@@ -367,6 +362,18 @@ const reviewService = {
   async getByCourseId(courseId) {
     const row = await db.getOne('SELECT * FROM reviews WHERE course_id = ?', [courseId])
     return formatReview(row)
+  },
+
+  async listByStudent(studentId) {
+    const rows = await db.query(`
+      SELECT r.*, c.name as coach_name, c.avatar as coach_avatar, co.subject
+      FROM reviews r
+      LEFT JOIN coaches c ON r.coach_id = c.id
+      LEFT JOIN courses co ON r.course_id = co.id
+      WHERE r.student_id = ?
+      ORDER BY r.created_at DESC
+    `, [studentId])
+    return rows.map(formatReview)
   },
 
   async create(data) {

@@ -67,7 +67,7 @@
           <div class="mini-left">
             <span class="mini-icon">{{ item.icon }}</span>
             <div class="mini-info">
-              <div class="mini-name">{{ item.name }} · {{ item.fullName }}</div>
+              <div class="mini-name">{{ item.subjectName }} · {{ item.fullName }}</div>
               <template v-if="item.status === 'passed'">
                 <div class="mini-sub text-success">已通过 · {{ item.score }}分</div>
               </template>
@@ -162,10 +162,14 @@
             :key="review.id"
             class="review-item"
           >
-            <div class="review-top">
-              <div class="review-left">
-                <van-rate :model-value="getAvg(review)" :count="5" size="13" color="#ffb300" readonly />
-                <span class="review-course">科{{ courses.find(c => c.id === review.courseId)?.subject || 2 }}</span>
+            <div class="review-coach">
+              <span class="coach-avatar">{{ review.coachAvatar || '👨‍🏫' }}</span>
+              <div class="coach-info">
+                <div class="coach-name">{{ review.coachName || '教练' }}</div>
+                <div class="review-meta">
+                  <van-rate :model-value="getAvg(review)" :count="5" size="12" color="#ffb300" readonly />
+                  <span class="review-course">科{{ review.subject || 2 }}</span>
+                </div>
               </div>
               <span class="review-date">{{ review.date }}</span>
             </div>
@@ -184,7 +188,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { showToast, showLoadingToast, closeToast } from 'vant'
-import { getStudentProfile, getStudentProgress, getCourseList } from '../api'
+import { getStudentProfile, getStudentProgress, getCourseList, getReviewsByStudent } from '../api'
 
 const studentInfo = ref({})
 const subjectProgress = ref([])
@@ -213,14 +217,16 @@ function getCourseSubject(courseId) {
 async function loadData() {
   showLoadingToast({ message: '加载中...', forbidClick: true })
   try {
-    const [profile, progress, courses] = await Promise.all([
+    const [profile, progress, courses, reviews] = await Promise.all([
       getStudentProfile(),
       getStudentProgress(),
       getCourseList(),
+      getReviewsByStudent(1),
     ])
     studentInfo.value = profile || {}
     subjectProgress.value = Array.isArray(progress) ? progress : []
     courseList.value = Array.isArray(courses) ? courses : []
+    myReviews.value = Array.isArray(reviews) ? reviews : []
   } catch (e) {
     console.error('加载个人中心数据失败', e)
   } finally {
@@ -613,30 +619,55 @@ onMounted(() => {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
 }
 
-.review-top {
+.review-coach {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 10px;
 }
 
-.review-left {
+.coach-avatar {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #1989fa 0%, #3da5ff 100%);
+  border-radius: 12px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.coach-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.coach-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #323233;
+}
+
+.review-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
 }
 
 .review-course {
-  font-size: 11px;
-  padding: 2px 7px;
+  font-size: 10px;
+  padding: 1px 6px;
   background: rgba(25, 137, 250, 0.1);
   color: #1989fa;
-  border-radius: 5px;
+  border-radius: 4px;
   font-weight: 500;
 }
 
 .review-date {
   font-size: 11px;
   color: #969799;
+  flex-shrink: 0;
 }
 
 .review-tags {

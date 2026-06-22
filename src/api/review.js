@@ -4,6 +4,10 @@ export function getReviewsByCoach(coachId) {
   return request.get(`/review/coach/${coachId}`)
 }
 
+export function getReviewsByStudent(studentId) {
+  return request.get(`/review/student/${studentId}`)
+}
+
 export function getReviewByCourse(courseId) {
   return request.get(`/review/course/${courseId}`)
 }

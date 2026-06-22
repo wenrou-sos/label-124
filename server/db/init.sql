@@ -175,7 +175,10 @@ CREATE TABLE simulator_bookings (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 INSERT INTO students (student_no, name, phone, password, school, enroll_date, total_hours, used_hours, remaining_hours, credits) VALUES
-('S2024001', '张同学', '13888888888', '123456', '阳光驾校', '2024-03-15', 62, 18.5, 43.5, 380);
+('S2024001', '张同学', '13888888888', '123456', '阳光驾校', '2024-03-15', 62, 18.5, 43.5, 380),
+('S2024002', '李同学', '13888888889', '123456', '阳光驾校', '2024-03-20', 62, 20, 42, 350),
+('S2024003', '王同学', '13888888890', '123456', '阳光驾校', '2024-04-01', 62, 15, 47, 320),
+('S2024004', '赵同学', '13888888891', '123456', '阳光驾校', '2024-04-10', 62, 25, 37, 400);
 
 INSERT INTO subject_progress (student_id, subject, subject_name, full_name, status, icon, color, training_hours, required_hours, pass_date, score) VALUES
 (1, 1, '科一', '理论知识', 'passed', '📚', 'linear-gradient(135deg, #07c160 0%, #10b981 100%)', 0, 0, '2024-04-10', 96),
@@ -207,12 +210,16 @@ INSERT INTO courses (student_id, coach_id, coach_name, coach_avatar, course_date
 (1, 2, '王教练', '👩‍🏫', DATE_ADD(CURDATE(), INTERVAL 2 DAY), 'afternoon1', '14:00', '16:00', '下午1', 'afternoon', '阳光驾校训练场地B区 - 1号位', 2, 2, 'upcoming', '需要加强坡道起步', 0),
 (1, 1, '李教练', '👨‍🏫', DATE_ADD(CURDATE(), INTERVAL 4 DAY), 'morning1', '08:00', '10:00', '早班1', 'morning', '阳光驾校训练场地A区 - 3号位', 2, 2, 'upcoming', '', 0),
 (1, 1, '李教练', '👨‍🏫', DATE_SUB(CURDATE(), INTERVAL 3 DAY), 'afternoon2', '16:00', '18:00', '下午2', 'afternoon', '阳光驾校训练场地A区 - 3号位', 2, 2, 'completed', '综合训练为主', 1),
-(1, 2, '王教练', '👩‍🏫', DATE_SUB(CURDATE(), INTERVAL 5 DAY), 'morning2', '10:00', '12:00', '早班2', 'morning', '阳光驾校训练场地B区 - 1号位', 2, 2, 'completed', '多练侧方停车', 0);
+(1, 2, '王教练', '👩‍🏫', DATE_SUB(CURDATE(), INTERVAL 5 DAY), 'morning2', '10:00', '12:00', '早班2', 'morning', '阳光驾校训练场地B区 - 1号位', 2, 2, 'completed', '多练侧方停车', 0),
+(2, 1, '李教练', '👨‍🏫', DATE_SUB(CURDATE(), INTERVAL 8 DAY), 'morning1', '08:00', '10:00', '早班1', 'morning', '阳光驾校训练场地A区 - 3号位', 2, 2, 'completed', '倒库专项训练', 1),
+(3, 1, '李教练', '👨‍🏫', DATE_SUB(CURDATE(), INTERVAL 10 DAY), 'afternoon1', '14:00', '16:00', '下午1', 'afternoon', '阳光驾校训练场地A区 - 3号位', 2, 2, 'completed', '综合训练', 1),
+(4, 2, '王教练', '👩‍🏫', DATE_SUB(CURDATE(), INTERVAL 12 DAY), 'morning2', '10:00', '12:00', '早班2', 'morning', '阳光驾校训练场地B区 - 1号位', 2, 2, 'completed', '坡道起步练习', 1);
 
 INSERT INTO reviews (coach_id, student_id, student_name, student_avatar, course_id, attitude, professionalism, patience, punctuality, content, tags) VALUES
-(1, 1, '李同学', '👩‍🎓', 4, 5, 5, 5, 5, '李教练教得特别好，非常有耐心，每次练车都很有收获！倒库教的方法特别实用，一学就会。', '有耐心,讲解清晰,方法实用'),
-(1, 1, '王同学', '👨‍🎓', 4, 5, 5, 4, 5, '教练非常专业，经验丰富，每次都能指出我操作中的问题，进步很快。', '经验丰富,专业细致'),
-(2, 1, '赵同学', '👩‍🎓', 5, 5, 5, 5, 4, '王教练特别温柔，练车时从来不会紧张，坡道起步练了很多次才学会，教练一直很有耐心。', '温柔耐心,缓解紧张');
+(1, 1, '张同学', '👨‍🎓', 4, 5, 5, 5, 5, '李教练很专业，倒库和侧方停车都教得很好，每次都能有进步。', '专业,有耐心'),
+(1, 2, '李同学', '👩‍🎓', 6, 5, 5, 5, 5, '李教练教得特别好，非常有耐心，每次练车都很有收获！倒库教的方法特别实用，一学就会。', '有耐心,讲解清晰,方法实用'),
+(1, 3, '王同学', '👨‍🎓', 7, 5, 5, 4, 5, '教练非常专业，经验丰富，每次都能指出我操作中的问题，进步很快。', '经验丰富,专业细致'),
+(2, 4, '赵同学', '👩‍🎓', 8, 5, 5, 5, 4, '王教练特别温柔，练车时从来不会紧张，坡道起步练了很多次才学会，教练一直很有耐心。', '温柔耐心,缓解紧张');
 
 INSERT INTO simulator_info (name, description, duration, location, notice, faq) VALUES
 ('科二考场模拟训练', '1:1还原真实考场环境，助您熟悉考试流程', '2小时/次', '阳光驾校考场模拟中心',

@@ -20,12 +20,15 @@ app.use((req, res, next) => {
   next()
 })
 
-app.get('/', (req, res) => {
+app.get('/', async (req, res) => {
+  const { getCurrentDataSource, getServices } = require('./services')
+  await getServices()
   res.json({
     code: 0,
     message: '驾校学员端API服务',
     version: '1.0.0',
-    dataSource: config.dataSource,
+    configDataSource: config.dataSource,
+    activeDataSource: getCurrentDataSource(),
     apis: {
       'GET /api/student/profile': '学员信息',
       'GET /api/student/progress': '学习进度',
@@ -62,7 +65,14 @@ app.use((err, req, res, next) => {
   res.status(500).json({ code: -1, message: '服务器内部错误', data: null })
 })
 
-app.listen(config.port, () => {
-  console.log(`🚀 服务器运行在 http://localhost:${config.port}`)
-  console.log(`� 数据源模式: ${config.dataSource}`)
-})
+async function startServer() {
+  const { getServices, getCurrentDataSource } = require('./services')
+  await getServices()
+  app.listen(config.port, () => {
+    console.log(`🚀 服务器运行在 http://localhost:${config.port}`)
+    console.log(`📊 配置数据源: ${config.dataSource}`)
+    console.log(`✅ 当前使用: ${getCurrentDataSource()}`)
+  })
+}
+
+startServer()

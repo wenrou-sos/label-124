@@ -50,9 +50,10 @@ let courses = [
 ]
 
 let reviews = [
-  { id: 1, coachId: 1, studentName: '李同学', avatar: '👩‍🎓', date: '2024-06-15', courseId: 101, ratings: { attitude: 5, professionalism: 5, patience: 5, punctuality: 5 }, content: '李教练教得特别好，非常有耐心，每次练车都很有收获！倒库教的方法特别实用，一学就会。', tags: ['有耐心', '讲解清晰', '方法实用'] },
-  { id: 2, coachId: 1, studentName: '王同学', avatar: '👨‍🎓', date: '2024-06-12', courseId: 98, ratings: { attitude: 5, professionalism: 5, patience: 4, punctuality: 5 }, content: '教练非常专业，经验丰富，每次都能指出我操作中的问题，进步很快。', tags: ['经验丰富', '专业细致'] },
-  { id: 3, coachId: 2, studentName: '赵同学', avatar: '👩‍🎓', date: '2024-06-10', courseId: 95, ratings: { attitude: 5, professionalism: 5, patience: 5, punctuality: 4 }, content: '王教练特别温柔，练车时从来不会紧张，坡道起步练了很多次才学会，教练一直很有耐心。', tags: ['温柔耐心', '缓解紧张'] },
+  { id: 1, coachId: 1, studentId: 2, studentName: '李同学', avatar: '👩‍🎓', date: '2024-06-15', courseId: 101, ratings: { attitude: 5, professionalism: 5, patience: 5, punctuality: 5 }, content: '李教练教得特别好，非常有耐心，每次练车都很有收获！倒库教的方法特别实用，一学就会。', tags: ['有耐心', '讲解清晰', '方法实用'] },
+  { id: 2, coachId: 1, studentId: 3, studentName: '王同学', avatar: '👨‍🎓', date: '2024-06-12', courseId: 98, ratings: { attitude: 5, professionalism: 5, patience: 4, punctuality: 5 }, content: '教练非常专业，经验丰富，每次都能指出我操作中的问题，进步很快。', tags: ['经验丰富', '专业细致'] },
+  { id: 3, coachId: 2, studentId: 4, studentName: '赵同学', avatar: '👩‍🎓', date: '2024-06-10', courseId: 95, ratings: { attitude: 5, professionalism: 5, patience: 5, punctuality: 4 }, content: '王教练特别温柔，练车时从来不会紧张，坡道起步练了很多次才学会，教练一直很有耐心。', tags: ['温柔耐心', '缓解紧张'] },
+  { id: 4, coachId: 1, studentId: 1, studentName: '张同学', avatar: '👨‍🎓', date: '2024-06-08', courseId: 98, ratings: { attitude: 5, professionalism: 5, patience: 5, punctuality: 5 }, content: '李教练很专业，倒库和侧方停车都教得很好，每次都能有进步。', tags: ['专业', '有耐心'] },
 ]
 
 const simulatorInfo = {

@@ -16,6 +16,17 @@ router.get('/coach/:coachId', async (req, res) => {
   }
 })
 
+router.get('/student/:studentId', async (req, res) => {
+  try {
+    const studentId = Number(req.params.studentId)
+    const reviews = await services.review.listByStudent(studentId)
+    success(res, reviews)
+  } catch (err) {
+    console.error('Get student reviews error:', err)
+    fail(res, '获取我的评价失败')
+  }
+})
+
 router.get('/course/:courseId', async (req, res) => {
   try {
     const courseId = Number(req.params.courseId)

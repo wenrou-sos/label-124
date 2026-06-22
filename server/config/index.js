@@ -1,6 +1,6 @@
 module.exports = {
   port: 3000,
-  dataSource: 'memory',
+  dataSource: 'mysql',
 
   mysql: {
     host: 'localhost',

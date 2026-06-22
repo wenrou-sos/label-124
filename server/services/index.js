@@ -1,10 +1,32 @@
 const config = require('../config')
 
 let services
+let currentDataSource = config.dataSource
 
-if (config.dataSource === 'mysql') {
-  services = require('./mysqlService')
-} else {
+async function testMysqlConnection() {
+  try {
+    const db = require('../db/pool')
+    await db.query('SELECT 1')
+    return true
+  } catch (err) {
+    console.warn('⚠️  MySQL连接失败，自动降级到内存数据源:', err.message)
+    return false
+  }
+}
+
+async function initServices() {
+  if (config.dataSource === 'mysql') {
+    const connected = await testMysqlConnection()
+    if (connected) {
+      currentDataSource = 'mysql'
+      return require('./mysqlService')
+    }
+  }
+  currentDataSource = 'memory'
+  return createMemoryServices()
+}
+
+function createMemoryServices() {
   const memoryData = require('../data/memory')
   const { getDateStr, isWithinCancelWindow } = require('../utils/date')
 
@@ -176,12 +198,27 @@ if (config.dataSource === 'mysql') {
     },
   }
 
+  function enrichReview(review) {
+    const coach = memoryData.coaches.find(c => c.id === review.coachId)
+    const course = memoryData.courses.find(c => c.id === review.courseId)
+    return {
+      ...review,
+      coachName: coach ? coach.name : null,
+      coachAvatar: coach ? coach.avatar : null,
+      subject: course ? course.subject : 2,
+    }
+  }
+
   const reviewService = {
     async listByCoach(coachId) {
-      return memoryData.reviews.filter(r => r.coachId === coachId)
+      return memoryData.reviews.filter(r => r.coachId === coachId).map(enrichReview)
     },
     async getByCourseId(courseId) {
-      return memoryData.reviews.find(r => r.courseId === courseId) || null
+      const review = memoryData.reviews.find(r => r.courseId === courseId)
+      return review ? enrichReview(review) : null
+    },
+    async listByStudent(studentId) {
+      return memoryData.reviews.filter(r => r.studentId === studentId).map(enrichReview)
     },
     async create(data) {
       const { coachId, studentId, courseId } = data
@@ -256,7 +293,7 @@ if (config.dataSource === 'mysql') {
     },
   }
 
-  services = {
+  return {
     student: studentService,
     coach: coachService,
     course: courseService,
@@ -265,4 +302,50 @@ if (config.dataSource === 'mysql') {
   }
 }
 
-module.exports = services
+let servicesPromise = null
+
+function getServices() {
+  if (!servicesPromise) {
+    servicesPromise = initServices()
+  }
+  return servicesPromise
+}
+
+function getCurrentDataSource() {
+  return currentDataSource
+}
+
+module.exports = {
+  getServices,
+  getCurrentDataSource,
+  student: new Proxy({}, {
+    get: (target, prop) => async (...args) => {
+      const s = await getServices()
+      return s.student[prop](...args)
+    }
+  }),
+  coach: new Proxy({}, {
+    get: (target, prop) => async (...args) => {
+      const s = await getServices()
+      return s.coach[prop](...args)
+    }
+  }),
+  course: new Proxy({}, {
+    get: (target, prop) => async (...args) => {
+      const s = await getServices()
+      return s.course[prop](...args)
+    }
+  }),
+  review: new Proxy({}, {
+    get: (target, prop) => async (...args) => {
+      const s = await getServices()
+      return s.review[prop](...args)
+    }
+  }),
+  simulator: new Proxy({}, {
+    get: (target, prop) => async (...args) => {
+      const s = await getServices()
+      return s.simulator[prop](...args)
+    }
+  }),
+}
