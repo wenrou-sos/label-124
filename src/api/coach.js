@@ -1,10 +1,10 @@
 import request from './request'
 
-export function listCoaches(subject) {
-  return request.get('/coach', { params: subject ? { subject } : {} })
+export function getCoachList(subject) {
+  return request.get('/coach', { params: { subject } })
 }
 
-export function getCoach(id) {
+export function getCoachDetail(id) {
   return request.get(`/coach/${id}`)
 }
 
@@ -12,6 +12,6 @@ export function getCoachSchedule(id) {
   return request.get(`/coach/${id}/schedule`)
 }
 
-export function getCoachReviews(id) {
-  return request.get(`/coach/${id}/reviews`)
+export function getCoachReviews(id, page, pageSize) {
+  return request.get(`/coach/${id}/reviews`, { params: { page, pageSize } })
 }

@@ -222,17 +222,18 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { showSuccessToast, showToast } from 'vant'
+import { showSuccessToast, showToast, showLoadingToast, closeToast } from 'vant'
 import {
   getSimulatorInfo,
   getSimulatorSessions,
   getMySimulatorBookings,
   bookSimulator,
-} from '../api/simulator'
+} from '../api'
 
-const simulatorInfo = ref(null)
+const simulatorInfo = ref({})
 const simulatorSessions = ref([])
 const bookedSimulators = ref([])
+
 const selectedSession = ref('')
 const openFaq = ref(null)
 const showConfirm = ref(false)
@@ -288,39 +289,41 @@ async function doConfirm() {
   confirmLoading.value = true
 
   try {
-    await bookSimulator(currentSession.value.date, {
-      id: selectedSlot.value.id,
-      start: selectedSlot.value.start,
-      end: selectedSlot.value.end,
-      price: selectedSlot.value.price,
+    await bookSimulator({
+      sessionDate: currentSession.value.date,
+      slot: selectedSlot.value,
     })
     confirmLoading.value = false
     showConfirm.value = false
     showSuccessToast('预约支付成功')
-    const myBookings = await getMySimulatorBookings()
-    bookedSimulators.value = Array.isArray(myBookings) ? myBookings : []
+    loadData()
   } catch (e) {
     confirmLoading.value = false
-    showToast(e.message || '预约失败，该时段可能已被预约')
+    showToast(e?.message || '预约失败，请稍后重试')
   }
 }
 
-onMounted(async () => {
+async function loadData() {
   try {
-    const [info, sessions, myBookings] = await Promise.all([
+    const [info, sessions, bookings] = await Promise.all([
       getSimulatorInfo(),
       getSimulatorSessions(),
       getMySimulatorBookings(),
     ])
-    simulatorInfo.value = info
+    simulatorInfo.value = info || {}
     simulatorSessions.value = Array.isArray(sessions) ? sessions : []
-    bookedSimulators.value = Array.isArray(myBookings) ? myBookings : []
-    if (simulatorSessions.value.length > 0) {
+    bookedSimulators.value = Array.isArray(bookings) ? bookings : []
+    if (simulatorSessions.value.length > 0 && !selectedSession.value) {
       selectedSession.value = simulatorSessions.value[0].id
     }
   } catch (e) {
-    console.error('加载模拟器数据失败', e)
+    console.error('加载模拟训练数据失败', e)
   }
+}
+
+onMounted(() => {
+  showLoadingToast({ message: '加载中...', forbidClick: true })
+  loadData().finally(() => closeToast())
 })
 </script>
 

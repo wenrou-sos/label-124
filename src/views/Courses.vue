@@ -123,12 +123,11 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { showDialog, showToast, showConfirmDialog } from 'vant'
-import { listCourses, cancelCourse as apiCancelCourse } from '../api/course'
-import { getCoach } from '../api/coach'
-import { getMeta } from '../api/common'
+import { showDialog, showToast, showConfirmDialog, showLoadingToast, closeToast } from 'vant'
+import { getCourseList, cancelCourse, getCoachDetail } from '../api'
+import { isWithinCancelWindow } from '../utils'
 
 const router = useRouter()
 
@@ -140,20 +139,8 @@ const tabs = [
 ]
 
 const activeTab = ref('all')
-const courses = ref([])
-const cancelWindowHours = ref(2)
-
-async function loadCourses() {
-  try {
-    const status = activeTab.value === 'all' ? undefined : activeTab.value
-    const data = await listCourses(status)
-    courses.value = Array.isArray(data) ? data : []
-  } catch (e) {
-    console.error('加载课程列表失败', e)
-  }
-}
-
-watch(activeTab, loadCourses)
+const courseList = ref([])
+const coachMap = ref({})
 
 const StatusBadge = {
   props: ['status'],
@@ -167,14 +154,11 @@ const StatusBadge = {
 }
 
 const filteredCourses = computed(() => {
-  let list = [...courses.value]
-  return list.sort((a, b) => {
-    const priority = { upcoming: 0, completed: 1, cancelled: 2 }
-    if (priority[a.status] !== priority[b.status]) {
-      return priority[a.status] - priority[b.status]
-    }
-    return new Date(b.date) - new Date(a.date)
-  })
+  let list = [...courseList.value]
+  if (activeTab.value !== 'all') {
+    list = list.filter((c) => c.status === activeTab.value)
+  }
+  return list
 })
 
 const emptyText = computed(() => {
@@ -188,8 +172,8 @@ const emptyText = computed(() => {
 })
 
 function getCountByTab(key) {
-  if (key === 'all') return courses.value.length
-  return courses.value.filter((c) => c.status === key).length
+  if (key === 'all') return courseList.value.length
+  return courseList.value.filter((c) => c.status === key).length
 }
 
 function formatDatePart(dateStr) {
@@ -201,32 +185,23 @@ function formatDatePart(dateStr) {
   }
 }
 
-function isWithinCancelWindow(dateStr, timeStr) {
-  const [h, m] = timeStr.split(':').map(Number)
-  const courseTime = new Date(dateStr)
-  courseTime.setHours(h, m, 0, 0)
-  const now = new Date()
-  const diff = courseTime.getTime() - now.getTime()
-  const hoursMs = cancelWindowHours.value * 60 * 60 * 1000
-  return diff >= hoursMs
-}
-
 async function handleCall(course) {
-  let phone = course.coachPhone
-  if (!phone) {
-    try {
-      const coach = await getCoach(course.coachId)
-      phone = coach ? coach.phone : '暂无电话'
-    } catch (e) {
-      phone = '暂无电话'
-    }
+  try {
+    const coach = await getCoachDetail(course.coachId)
+    const phone = coach ? coach.phone : '暂无电话'
+    showDialog({
+      title: '联系教练',
+      message: `${course.coachName}：${phone}`,
+      confirmButtonText: '拨打',
+      showCancelButton: true,
+    })
+  } catch (e) {
+    showDialog({
+      title: '联系教练',
+      message: `${course.coachName}：暂无电话`,
+      confirmButtonText: '确定',
+    })
   }
-  showDialog({
-    title: '联系教练',
-    message: `${course.coachName}：${phone}`,
-    confirmButtonText: '拨打',
-    showCancelButton: true,
-  })
 }
 
 async function handleCancel(course) {
@@ -235,10 +210,10 @@ async function handleCancel(course) {
 
   if (canCancelFree) {
     title = '确认取消预约？'
-    message = `距离课程开始还有${cancelWindowHours.value}小时以上，可免费取消，不扣除学分。`
+    message = '距离课程开始还有2小时以上，可免费取消，不扣除学分。'
   } else {
     title = '超时取消提醒'
-    message = `距离课程开始不足${cancelWindowHours.value}小时，取消将扣除50学分或扣除本次课时费，请确认是否继续取消？`
+    message = '距离课程开始不足2小时，取消将扣除50学分或扣除本次课时费，请确认是否继续取消？'
   }
 
   try {
@@ -249,24 +224,26 @@ async function handleCancel(course) {
       confirmButtonColor: canCancelFree ? undefined : '#ee0a24',
       cancelButtonText: '再想想',
     })
-    await apiCancelCourse(course.id)
-    await loadCourses()
+    await cancelCourse(course.id)
     showToast('取消成功')
+    loadCourses()
   } catch (e) {
-    // 用户取消或API失败
+    // 用户取消或请求失败
   }
 }
 
-onMounted(async () => {
+async function loadCourses() {
   try {
-    const metaData = await getMeta()
-    if (metaData && metaData.cancelWindowHours) {
-      cancelWindowHours.value = metaData.cancelWindowHours
-    }
+    const data = await getCourseList()
+    courseList.value = Array.isArray(data) ? data : []
   } catch (e) {
-    console.error('加载meta失败', e)
+    console.error('加载课程失败', e)
   }
-  await loadCourses()
+}
+
+onMounted(() => {
+  showLoadingToast({ message: '加载中...', forbidClick: true })
+  loadCourses().finally(() => closeToast())
 })
 </script>
 

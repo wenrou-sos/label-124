@@ -1,7 +1,11 @@
 import request from './request'
 
-export function listCoachReviews(coachId) {
+export function getReviewsByCoach(coachId) {
   return request.get(`/review/coach/${coachId}`)
+}
+
+export function getReviewByCourse(courseId) {
+  return request.get(`/review/course/${courseId}`)
 }
 
 export function submitReview(data) {

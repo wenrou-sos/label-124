@@ -102,10 +102,10 @@
         </div>
       </div>
 
-      <div class="section-title fade-in stagger-4">学员评价 ({{ coachReviews.length }})</div>
+      <div class="section-title fade-in stagger-4">学员评价 ({{ reviewList.length }})</div>
       <div class="review-list">
         <div
-          v-for="review in coachReviews"
+          v-for="review in reviewList"
           :key="review.id"
           class="review-card fade-in"
         >
@@ -124,7 +124,7 @@
           </div>
           <div class="review-content">{{ review.content }}</div>
         </div>
-        <van-empty v-if="coachReviews.length === 0" description="暂无评价" />
+        <van-empty v-if="reviewList.length === 0" description="暂无评价" />
       </div>
     </div>
 
@@ -144,14 +144,16 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
-import { getCoach, getCoachReviews } from '../api/coach'
+import { useRoute, useRouter } from 'vue-router'
+import { getCoachDetail, getReviewsByCoach } from '../api'
+import { showLoadingToast, closeToast } from 'vant'
 
 const route = useRoute()
+const router = useRouter()
 const coachId = Number(route.params.coachId)
 
 const coach = ref(null)
-const coachReviews = ref([])
+const reviewList = ref([])
 
 const ratingDims = [
   { key: 'attitude', label: '教学态度' },
@@ -165,17 +167,28 @@ function getAvgRating(review) {
   return vals.reduce((a, b) => a + b, 0) / vals.length
 }
 
-onMounted(async () => {
+function goBooking() {
+  router.push(`/booking-detail/${coachId}`)
+}
+
+async function loadData() {
+  showLoadingToast({ message: '加载中...', forbidClick: true })
   try {
     const [coachData, reviewsData] = await Promise.all([
-      getCoach(coachId),
-      getCoachReviews(coachId),
+      getCoachDetail(coachId),
+      getReviewsByCoach(coachId),
     ])
     coach.value = coachData
-    coachReviews.value = Array.isArray(reviewsData) ? reviewsData : []
+    reviewList.value = Array.isArray(reviewsData) ? reviewsData : []
   } catch (e) {
     console.error('加载教练详情失败', e)
+  } finally {
+    closeToast()
   }
+}
+
+onMounted(() => {
+  loadData()
 })
 </script>
 

@@ -1,97 +1,79 @@
 <template>
-  <div class="booking-page page-container">
-    <div class="page-title">预约练车</div>
+  <div class="booking-page">
+    <van-nav-bar title="预约练车" fixed placeholder />
 
     <van-notice-bar
-      left-icon="info-o"
-      background="linear-gradient(90deg, #e8f3ff 0%, #f0f7ff 100%)"
-      color="#1989fa"
-      text="预约后可在课程开始前2小时免费取消，超时取消将扣除相应学分"
+      left-icon="warning-o"
+      text="取消规则：课程开始前2小时可免费取消，超时需扣50学分"
+      color="#f56c6c"
+      background="#fef0f0"
     />
 
-    <div class="section-title">选择教练</div>
     <div class="coach-list">
       <div
-        v-for="coach in coaches"
+        v-for="coach in coachList"
         :key="coach.id"
-        class="coach-card fade-in"
-        :style="{ animationDelay: `${coach.id * 0.06}s` }"
-        @click="$router.push(`/booking-detail/${coach.id}`)"
+        class="coach-card"
+        @click="goToDetail(coach.id)"
       >
-        <div class="coach-avatar-wrap">
-          <span class="coach-avatar">{{ coach.avatar }}</span>
-          <span v-if="coach.subject === 2" class="coach-badge subject-2">科二</span>
-          <span v-else class="coach-badge subject-3">科三</span>
-        </div>
+        <div class="coach-avatar">{{ coach.avatar }}</div>
         <div class="coach-info">
-          <div class="coach-name-row">
-            <span class="coach-name">{{ coach.name }}</span>
-            <span class="coach-gender">{{ coach.gender }} · {{ coach.age }}岁</span>
+          <div class="coach-name">
+            {{ coach.name }}
+            <span class="subject-tag" :class="'subject-' + coach.subject">
+              科{{ coach.subject }}
+            </span>
           </div>
-          <div class="coach-rating-row">
-            <van-rate
-              :model-value="coach.rating"
-              :count="5"
-              size="14"
-              color="#ffb300"
-              void-color="#eee"
-              readonly
-            />
-            <span class="rating-score">{{ coach.rating }}</span>
-            <span class="rating-count">({{ coach.ratingCount }}条评价)</span>
+          <div class="coach-stats">
+            <span class="rating">
+              <van-rate v-model="dumRating" readonly size="12" color="#ff976a" />
+              {{ coach.rating }}分
+            </span>
+            <span class="pass-rate">通过率 {{ coach.passRate }}</span>
+            <span class="students">{{ coach.students }}人</span>
+          </div>
+          <div class="coach-detail">
+            <span>{{ coach.carModel }}</span>
+            <span>{{ coach.experience }}年教龄</span>
           </div>
           <div class="coach-tags">
-            <span v-for="tag in coach.tags" :key="tag" class="tag-item">{{ tag }}</span>
-          </div>
-          <div class="coach-meta">
-            <div class="meta-item">
-              <van-icon name="shield-o" size="12" />
-              <span>通过率 {{ coach.passRate }}</span>
-            </div>
-            <div class="meta-item">
-              <van-icon name="car-o" size="12" />
-              <span>{{ coach.carModel }}</span>
-            </div>
-            <div class="meta-item">
-              <van-icon name="clock-o" size="12" />
-              <span>教龄{{ coach.experience }}年</span>
-            </div>
+            <span v-for="tag in coach.tags" :key="tag" class="tag">{{ tag }}</span>
           </div>
         </div>
-        <div class="coach-action">
-          <van-icon name="arrow" size="18" color="#969799" />
-        </div>
+        <van-button type="primary" size="small" round>
+          去预约
+        </van-button>
       </div>
     </div>
 
-    <div class="section-title">时段说明</div>
-    <div class="legend-card">
-      <div class="legend-row">
+    <div class="legend-section">
+      <div class="legend-title">时段状态说明</div>
+      <div class="legend-items">
         <div class="legend-item">
           <span class="legend-dot available"></span>
-          <span class="legend-label">可预约</span>
+          <span>可约</span>
         </div>
         <div class="legend-item">
           <span class="legend-dot full"></span>
-          <span class="legend-label">已约满</span>
+          <span>约满</span>
         </div>
         <div class="legend-item">
           <span class="legend-dot rest"></span>
-          <span class="legend-label">教练休息</span>
+          <span>休息</span>
         </div>
       </div>
-      <div class="legend-slots mt-12">
-        <div class="slot-item">
-          <span class="slot-badge">早</span>
-          <span>08:00-12:00</span>
+      <div class="legend-items">
+        <div class="legend-item">
+          <span class="legend-time morning"></span>
+          <span>上午</span>
         </div>
-        <div class="slot-item">
-          <span class="slot-badge noon">中</span>
-          <span>14:00-18:00</span>
+        <div class="legend-item">
+          <span class="legend-time afternoon"></span>
+          <span>下午</span>
         </div>
-        <div class="slot-item">
-          <span class="slot-badge night">晚</span>
-          <span>18:00-20:00</span>
+        <div class="legend-item">
+          <span class="legend-time evening"></span>
+          <span>晚上</span>
         </div>
       </div>
     </div>
@@ -100,22 +82,42 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { listCoaches } from '../api/coach'
+import { useRouter } from 'vue-router'
+import { getCoachList } from '../api'
+import { showLoadingToast, closeToast } from 'vant'
 
-const coaches = ref([])
+const router = useRouter()
+const coachList = ref([])
+const dumRating = ref(5)
 
-onMounted(async () => {
+function goToDetail(coachId) {
+  router.push(`/booking-detail/${coachId}`)
+}
+
+async function loadCoaches() {
+  showLoadingToast({ message: '加载中...', forbidClick: true })
   try {
-    const data = await listCoaches()
-    coaches.value = Array.isArray(data) ? data : []
+    const data = await getCoachList()
+    coachList.value = Array.isArray(data) ? data : []
   } catch (e) {
     console.error('加载教练列表失败', e)
+  } finally {
+    closeToast()
   }
+}
+
+onMounted(() => {
+  loadCoaches()
 })
 </script>
 
 <style scoped>
+.booking-page {
+  padding-bottom: 20px;
+}
+
 .coach-list {
+  padding: 12px 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -123,57 +125,24 @@ onMounted(async () => {
 
 .coach-card {
   background: #fff;
-  border-radius: 16px;
+  border-radius: 14px;
   padding: 16px;
   display: flex;
-  gap: 14px;
-  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.05);
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.coach-card:active {
-  transform: scale(0.98);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-.coach-avatar-wrap {
-  position: relative;
-  width: 64px;
-  height: 64px;
-  flex-shrink: 0;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .coach-avatar {
-  width: 64px;
-  height: 64px;
-  background: linear-gradient(135deg, #e8f3ff 0%, #f0f7ff 100%);
-  border-radius: 16px;
+  font-size: 44px;
+  width: 56px;
+  height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 32px;
-  border: 2px solid #fff;
-  box-shadow: 0 2px 8px rgba(25, 137, 250, 0.15);
-}
-
-.coach-badge {
-  position: absolute;
-  bottom: -4px;
-  right: -4px;
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 8px;
-  color: #fff;
-  font-weight: 500;
-}
-
-.subject-2 {
-  background: linear-gradient(135deg, #1989fa 0%, #3da5ff 100%);
-}
-
-.subject-3 {
-  background: linear-gradient(135deg, #7232dd 0%, #9c62ee 100%);
+  background: #f7f8fa;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .coach-info {
@@ -181,149 +150,132 @@ onMounted(async () => {
   min-width: 0;
 }
 
-.coach-name-row {
+.coach-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #323233;
+  margin-bottom: 6px;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
 }
 
-.coach-name {
-  font-size: 16px;
-  font-weight: 700;
-  color: #323233;
+.subject-tag {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: normal;
 }
 
-.coach-gender {
+.subject-2 {
+  background: #e8f3ff;
+  color: #1989fa;
+}
+
+.subject-3 {
+  background: #fff3e0;
+  color: #ff976a;
+}
+
+.coach-stats {
+  display: flex;
+  gap: 12px;
   font-size: 12px;
   color: #969799;
+  margin-bottom: 6px;
 }
 
-.coach-rating-row {
+.rating {
+  color: #ff976a;
+  font-weight: 500;
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 4px;
+  gap: 4px;
 }
 
-.rating-score {
-  font-size: 13px;
-  font-weight: 600;
-  color: #ffb300;
-}
-
-.rating-count {
+.coach-detail {
   font-size: 12px;
-  color: #969799;
+  color: #646566;
+  display: flex;
+  gap: 12px;
+  margin-bottom: 6px;
 }
 
 .coach-tags {
   display: flex;
-  flex-wrap: wrap;
   gap: 6px;
-  margin-top: 8px;
+  flex-wrap: wrap;
 }
 
-.tag-item {
+.tag {
   font-size: 11px;
   padding: 2px 8px;
-  background: rgba(25, 137, 250, 0.08);
-  color: #1989fa;
-  border-radius: 4px;
+  background: #f7f8fa;
+  color: #969799;
+  border-radius: 10px;
 }
 
-.coach-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 10px;
-}
-
-.meta-item {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 12px;
-  color: #646566;
-}
-
-.coach-action {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.legend-card {
+.legend-section {
+  margin: 20px 16px 0;
   background: #fff;
   border-radius: 14px;
   padding: 16px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
 }
 
-.legend-row {
+.legend-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #323233;
+  margin-bottom: 12px;
+}
+
+.legend-items {
   display: flex;
   justify-content: space-around;
+  margin-bottom: 10px;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 12px;
   color: #646566;
 }
 
 .legend-dot {
   width: 12px;
   height: 12px;
-  border-radius: 4px;
+  border-radius: 50%;
 }
 
 .legend-dot.available {
-  background: linear-gradient(135deg, #07c160 0%, #10b981 100%);
+  background: #07c160;
 }
 
 .legend-dot.full {
-  background: linear-gradient(135deg, #dcdee0 0%, #ebedf0 100%);
+  background: #dcdee0;
 }
 
 .legend-dot.rest {
-  background: linear-gradient(135deg, #ee0a24 0%, #ff4d4f 100%);
+  background: #ee0a24;
 }
 
-.legend-slots {
-  display: flex;
-  justify-content: space-around;
-  padding-top: 12px;
-  border-top: 1px dashed #ebedf0;
+.legend-time {
+  width: 16px;
+  height: 12px;
+  border-radius: 2px;
 }
 
-.slot-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #646566;
+.legend-time.morning {
+  background: #ff976a;
 }
 
-.slot-badge {
-  width: 24px;
-  height: 24px;
-  background: linear-gradient(135deg, #ffd591 0%, #ffb84d 100%);
-  color: #fff;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 600;
+.legend-time.afternoon {
+  background: #1989fa;
 }
 
-.slot-badge.noon {
-  background: linear-gradient(135deg, #95de64 0%, #73d13d 100%);
-}
-
-.slot-badge.night {
-  background: linear-gradient(135deg, #85a5ff 0%, #597ef7 100%);
+.legend-time.evening {
+  background: #7232dd;
 }
 </style>

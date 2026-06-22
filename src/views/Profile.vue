@@ -1,6 +1,6 @@
 <template>
   <div class="profile-page">
-    <div class="profile-header" v-if="studentInfo">
+    <div class="profile-header">
       <div class="header-bg"></div>
       <div class="header-content">
         <div class="user-row">
@@ -165,7 +165,7 @@
             <div class="review-top">
               <div class="review-left">
                 <van-rate :model-value="getAvg(review)" :count="5" size="13" color="#ffb300" readonly />
-                <span class="review-course">科{{ getReviewSubject(review) }}</span>
+                <span class="review-course">科{{ courses.find(c => c.id === review.courseId)?.subject || 2 }}</span>
               </div>
               <span class="review-date">{{ review.date }}</span>
             </div>
@@ -182,25 +182,19 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { showToast } from 'vant'
-import { getStudentProfile, getStudentProgress } from '../api/student'
-import { listCourses } from '../api/course'
+import { ref, onMounted } from 'vue'
+import { showToast, showLoadingToast, closeToast } from 'vant'
+import { getStudentProfile, getStudentProgress, getCourseList } from '../api'
 
-const studentInfo = ref(null)
+const studentInfo = ref({})
 const subjectProgress = ref([])
 const myReviews = ref([])
 const courseList = ref([])
 
 function getAvg(review) {
-  const vals = Object.values(review.ratings)
+  const vals = Object.values(review.ratings || {})
+  if (vals.length === 0) return 0
   return vals.reduce((a, b) => a + b, 0) / vals.length
-}
-
-function getReviewSubject(review) {
-  if (review.subject) return review.subject
-  const course = courseList.value.find((c) => c.id === review.courseId)
-  return course ? course.subject : 2
 }
 
 function tip(name) {
@@ -211,19 +205,31 @@ function showSettings() {
   showToast('设置功能开发中')
 }
 
-onMounted(async () => {
+function getCourseSubject(courseId) {
+  const course = courseList.value.find(c => c.id === courseId)
+  return course ? course.subject : 2
+}
+
+async function loadData() {
+  showLoadingToast({ message: '加载中...', forbidClick: true })
   try {
-    const [profile, progress, coursesData] = await Promise.all([
+    const [profile, progress, courses] = await Promise.all([
       getStudentProfile(),
       getStudentProgress(),
-      listCourses('completed'),
+      getCourseList(),
     ])
-    studentInfo.value = profile
-    subjectProgress.value = progress
-    courseList.value = Array.isArray(coursesData) ? coursesData : []
+    studentInfo.value = profile || {}
+    subjectProgress.value = Array.isArray(progress) ? progress : []
+    courseList.value = Array.isArray(courses) ? courses : []
   } catch (e) {
     console.error('加载个人中心数据失败', e)
+  } finally {
+    closeToast()
   }
+}
+
+onMounted(() => {
+  loadData()
 })
 </script>
 

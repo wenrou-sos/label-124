@@ -118,9 +118,8 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { showSuccessToast, showToast } from 'vant'
-import { getCourse } from '../api/course'
-import { submitReview as apiSubmitReview } from '../api/review'
+import { showSuccessToast, showToast, showLoadingToast, closeToast } from 'vant'
+import { getCourseDetail, submitReview as submitReviewApi } from '../api'
 
 const route = useRoute()
 const router = useRouter()
@@ -188,12 +187,14 @@ async function submitReview() {
   submitting.value = true
 
   try {
-    await apiSubmitReview({
+    await submitReviewApi({
       coachId: course.value.coachId,
       courseId,
       ratings: { ...ratings },
       content: comment.value,
       tags: [...selectedTags.value],
+      studentName: '我',
+      avatar: '🧑',
     })
 
     submitting.value = false
@@ -201,16 +202,27 @@ async function submitReview() {
     setTimeout(() => router.back(), 1000)
   } catch (e) {
     submitting.value = false
-    showToast(e.message || '评价失败，请重试')
+    showToast(e?.message || '评价失败，请稍后重试')
   }
 }
 
-onMounted(async () => {
+async function loadCourse() {
   try {
-    course.value = await getCourse(courseId)
+    const data = await getCourseDetail(courseId)
+    course.value = data
+    if (data && data.status !== 'completed') {
+      showToast('只有已完成的课程才能评价')
+      setTimeout(() => router.back(), 1500)
+    }
   } catch (e) {
-    console.error('加载课程详情失败', e)
+    console.error('加载课程失败', e)
+    showToast('加载课程信息失败')
   }
+}
+
+onMounted(() => {
+  showLoadingToast({ message: '加载中...', forbidClick: true })
+  loadCourse().finally(() => closeToast())
 })
 </script>
 

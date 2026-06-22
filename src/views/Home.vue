@@ -1,307 +1,197 @@
 <template>
   <div class="home-page">
-    <div class="hero-banner" v-if="studentInfo">
-      <div class="hero-bg"></div>
+    <div class="hero-section">
       <div class="hero-content">
-        <div class="greeting">
-          <span class="wave">👋</span>
-          <span class="greeting-text">下午好，{{ studentInfo.name }}</span>
-        </div>
-        <div class="hero-subtitle">学车路上，每一步都算数</div>
-        <div class="hero-stats">
+        <h2 class="greeting">你好，{{ student.name || '学员' }}</h2>
+        <p class="subtitle">{{ student.school || '阳光驾校' }}</p>
+        <div class="stats-row">
           <div class="stat-item">
-            <div class="stat-value">{{ studentInfo.usedHours }}<span class="stat-unit">h</span></div>
+            <div class="stat-value">{{ student.usedHours || 0 }}</div>
             <div class="stat-label">已练学时</div>
           </div>
           <div class="stat-divider"></div>
           <div class="stat-item">
-            <div class="stat-value">{{ studentInfo.remainingHours }}<span class="stat-unit">h</span></div>
+            <div class="stat-value">{{ student.remainingHours || 0 }}</div>
             <div class="stat-label">剩余学时</div>
           </div>
           <div class="stat-divider"></div>
           <div class="stat-item">
-            <div class="stat-value">{{ studentInfo.credits }}</div>
+            <div class="stat-value">{{ student.credits || 0 }}</div>
             <div class="stat-label">学分</div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="page-container" style="margin-top: -30px; padding-top: 0;">
-      <div class="section-title fade-in stagger-1">学习进度</div>
-      <div class="progress-grid fade-in stagger-2">
-        <div
-          v-for="(item, idx) in subjectProgress"
-          :key="item.id"
-          class="progress-card"
-          :style="{ background: item.color, animationDelay: `${idx * 0.08}s` }"
-          @click="handleProgressClick(item)"
-        >
-          <div class="card-header">
-            <span class="card-icon">{{ item.icon }}</span>
-            <StatusTag :status="item.status" :data="item" />
-          </div>
-          <div class="card-body">
-            <div class="card-name">{{ item.name }}</div>
-            <div class="card-fullname">{{ item.fullName }}</div>
-          </div>
-          <div class="card-footer">
-            <template v-if="item.status === 'passed'">
-              <div class="pass-info">
-                <van-icon name="passed" />
-                <span>{{ item.score }}分 · {{ item.passDate.slice(5) }}</span>
-              </div>
-            </template>
-            <template v-else-if="item.status === 'training'">
-              <div class="training-bar">
-                <div class="bar-bg">
-                  <div
-                    class="bar-fill"
-                    :style="{ width: `${(item.trainingHours / item.requiredHours) * 100}%` }"
-                  ></div>
-                </div>
-                <div class="bar-text">
-                  已练{{ item.trainingHours }}/{{ item.requiredHours }}学时
-                </div>
-              </div>
-            </template>
-            <template v-else>
-              <div class="pending-text">
-                <van-icon name="clock-o" />
-                <span>待开始</span>
-              </div>
-            </template>
-          </div>
-        </div>
-      </div>
+    <div class="section-title">
+      <h3>学习进度</h3>
+      <span class="more" @click="$router.push('/profile')">查看全部</span>
+    </div>
 
-      <div class="section-title fade-in stagger-3">快捷功能</div>
-      <div class="quick-actions fade-in stagger-4">
-        <div class="action-card" @click="$router.push('/booking')">
-          <div class="action-icon-wrap" style="background: linear-gradient(135deg, #1989fa 0%, #3da5ff 100%);">
-            <van-icon name="calendar-o" size="24" color="#fff" />
-          </div>
-          <div class="action-name">预约练车</div>
+    <div class="progress-grid">
+      <div
+        v-for="item in progressList"
+        :key="item.subject"
+        class="progress-card"
+        :style="{ background: item.color }"
+      >
+        <div class="card-header">
+          <span class="card-icon">{{ item.icon }}</span>
+          <span class="card-status" :class="item.status">
+            {{ statusText(item.status) }}
+          </span>
         </div>
-        <div class="action-card" @click="$router.push('/courses')">
-          <div class="action-icon-wrap" style="background: linear-gradient(135deg, #07c160 0%, #10b981 100%);">
-            <van-icon name="orders-o" size="24" color="#fff" />
-          </div>
-          <div class="action-name">我的课程</div>
+        <div class="card-title">{{ item.subjectName }}</div>
+        <div class="card-subtitle">{{ item.fullName }}</div>
+        <div v-if="item.status === 'training'" class="progress-bar">
+          <div class="progress-fill" :style="{ width: progressPercent(item) + '%' }"></div>
         </div>
-        <div class="action-card" @click="$router.push('/simulator')">
-          <div class="action-icon-wrap" style="background: linear-gradient(135deg, #ff976a 0%, #ffb088 100%);">
-            <van-icon name="fire-o" size="24" color="#fff" />
-            <span class="badge-tag">收费</span>
-          </div>
-          <div class="action-name">考场模拟</div>
+        <div v-if="item.status === 'training'" class="hours-text">
+          已练 {{ item.trainingHours }} / {{ item.requiredHours }} 学时
         </div>
-        <div class="action-card" @click="showTip()">
-          <div class="action-icon-wrap" style="background: linear-gradient(135deg, #7232dd 0%, #9c62ee 100%);">
-            <van-icon name="friends-o" size="24" color="#fff" />
-          </div>
-          <div class="action-name">教练团队</div>
+        <div v-if="item.status === 'passed'" class="pass-info">
+          <span class="pass-score">{{ item.score }}分</span>
         </div>
-      </div>
-
-      <div class="section-title fade-in">近期课程</div>
-      <div class="upcoming-courses">
-        <template v-if="upcomingCourses.length > 0">
-          <div
-            v-for="course in upcomingCourses"
-            :key="course.id"
-            class="course-card fade-in"
-            @click="$router.push('/courses')"
-          >
-            <div class="course-left">
-              <div class="course-date">
-                <div class="date-month">{{ formatShortDate(course.date).month }}</div>
-                <div class="date-day">{{ formatShortDate(course.date).day }}</div>
-              </div>
-            </div>
-            <div class="course-right">
-              <div class="course-row">
-                <span class="coach-avatar">{{ course.coachAvatar }}</span>
-                <span class="coach-name">{{ course.coachName }}</span>
-                <span class="subject-tag">科{{ course.subject }}</span>
-              </div>
-              <div class="course-row mt-8">
-                <van-icon name="clock-o" color="#646566" size="14" />
-                <span class="course-time">{{ course.timeSlot.start }}-{{ course.timeSlot.end }}</span>
-              </div>
-              <div class="course-row mt-8">
-                <van-icon name="location-o" color="#646566" size="14" />
-                <span class="course-location">{{ course.location }}</span>
-              </div>
-            </div>
-          </div>
-        </template>
-        <van-empty v-else description="暂无即将开始的课程" />
       </div>
     </div>
+
+    <div class="section-title">
+      <h3>快捷功能</h3>
+    </div>
+
+    <div class="quick-grid">
+      <div class="quick-item" @click="$router.push('/booking')">
+        <div class="quick-icon bg-blue">📅</div>
+        <span>预约练车</span>
+      </div>
+      <div class="quick-item" @click="$router.push('/simulator')">
+        <div class="quick-icon bg-orange">🎯</div>
+        <span>考场模拟</span>
+      </div>
+      <div class="quick-item" @click="$router.push('/courses')">
+        <div class="quick-icon bg-green">📋</div>
+        <span>我的课程</span>
+      </div>
+      <div class="quick-item" @click="$router.push('/profile')">
+        <div class="quick-icon bg-purple">👤</div>
+        <span>个人中心</span>
+      </div>
+    </div>
+
+    <div class="section-title">
+      <h3>近期课程</h3>
+      <span class="more" @click="$router.push('/courses')">全部课程</span>
+    </div>
+
+    <div v-if="upcomingCourses.length > 0" class="upcoming-list">
+      <div v-for="course in upcomingCourses" :key="course.id" class="upcoming-card" @click="$router.push('/courses')">
+        <div class="upcoming-date">
+          <div class="date-day">{{ formatDay(course.date) }}</div>
+          <div class="date-month">{{ formatMonth(course.date) }}月</div>
+          <div class="date-weekday">{{ formatWeekday(course.date) }}</div>
+        </div>
+        <div class="upcoming-info">
+          <div class="upcoming-time">{{ course.timeSlot.start }} - {{ course.timeSlot.end }}</div>
+          <div class="upcoming-coach">{{ course.coachName }} · 科{{ course.subject }}</div>
+          <div class="upcoming-location">📍 {{ course.location }}</div>
+        </div>
+        <div class="upcoming-status upcoming">待上课</div>
+      </div>
+    </div>
+    <van-empty v-else description="暂无近期课程" />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { showToast } from 'vant'
-import { useRouter } from 'vue-router'
-import { getStudentProfile, getStudentProgress } from '../api/student'
-import { listCourses } from '../api/course'
+import { ref, onMounted } from 'vue'
+import { getStudentProfile, getStudentProgress, getCourseList } from '../api'
+import { showLoadingToast, closeToast } from 'vant'
 
-const router = useRouter()
+const student = ref({})
+const progressList = ref([])
+const upcomingCourses = ref([])
 
-const studentInfo = ref(null)
-const subjectProgress = ref([])
-const upcomingCourseList = ref([])
-
-const StatusTag = {
-  props: ['status', 'data'],
-  template: `
-    <span :class="'status-tag ' + statusClass">
-      <template v-if="status === 'passed'">通过</template>
-      <template v-else-if="status === 'training'">训练中</template>
-      <template v-else>未开始</template>
-    </span>
-  `,
-  computed: {
-    statusClass() {
-      return {
-        passed: 'status-passed',
-        training: 'status-training',
-        not_started: 'status-pending',
-      }[this.status]
-    },
-  },
-}
-
-const upcomingCourses = computed(() => {
-  return upcomingCourseList.value.slice(0, 2)
-})
-
-function formatShortDate(dateStr) {
-  const d = new Date(dateStr)
-  return {
-    month: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'][d.getMonth()],
-    day: d.getDate(),
+function statusText(status) {
+  const map = {
+    not_started: '未开始',
+    training: '学习中',
+    passed: '已通过',
   }
+  return map[status] || status
 }
 
-function handleProgressClick(item) {
-  if (item.status === 'training' && item.id === 2) {
-    router.push('/booking')
-  } else if (item.id === 2) {
-    showToast('可前往约车页面预约训练')
-  }
+function progressPercent(item) {
+  if (!item.requiredHours) return 0
+  return Math.min(100, (item.trainingHours / item.requiredHours) * 100)
 }
 
-function showTip() {
-  showToast('功能开发中，敬请期待')
+function formatDay(dateStr) {
+  return new Date(dateStr).getDate()
 }
 
-onMounted(async () => {
+function formatMonth(dateStr) {
+  return new Date(dateStr).getMonth() + 1
+}
+
+function formatWeekday(dateStr) {
+  const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+  return days[new Date(dateStr).getDay()]
+}
+
+async function loadData() {
+  showLoadingToast({ message: '加载中...', forbidClick: true })
   try {
     const [profile, progress, courses] = await Promise.all([
       getStudentProfile(),
       getStudentProgress(),
-      listCourses('upcoming'),
+      getCourseList('upcoming'),
     ])
-    studentInfo.value = profile
-    subjectProgress.value = progress
-    upcomingCourseList.value = Array.isArray(courses) ? courses : []
+    student.value = profile
+    progressList.value = progress
+    upcomingCourses.value = Array.isArray(courses) ? courses.slice(0, 3) : []
   } catch (e) {
     console.error('加载首页数据失败', e)
+  } finally {
+    closeToast()
   }
+}
+
+onMounted(() => {
+  loadData()
 })
 </script>
 
 <style scoped>
 .home-page {
-  padding-bottom: 0;
+  padding-bottom: 20px;
 }
 
-.hero-banner {
-  position: relative;
-  padding: 20px 16px 60px;
-  overflow: hidden;
-}
-
-.hero-bg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, #1989fa 0%, #3da5ff 60%, #6bc0ff 100%);
-  border-radius: 0 0 32px 32px;
-}
-
-.hero-bg::before {
-  content: '';
-  position: absolute;
-  top: -60px;
-  right: -40px;
-  width: 200px;
-  height: 200px;
-  background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
-  border-radius: 50%;
-}
-
-.hero-bg::after {
-  content: '';
-  position: absolute;
-  bottom: -80px;
-  left: -30px;
-  width: 180px;
-  height: 180px;
-  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-  border-radius: 50%;
-}
-
-.hero-content {
-  position: relative;
-  z-index: 1;
+.hero-section {
+  background: linear-gradient(135deg, #1989fa 0%, #3da5ff 100%);
+  padding: 30px 20px 50px;
+  color: #fff;
+  border-radius: 0 0 24px 24px;
 }
 
 .greeting {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+
+.subtitle {
+  font-size: 14px;
+  opacity: 0.85;
+  margin: 0 0 20px;
+}
+
+.stats-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 14px;
-}
-
-.wave {
-  font-size: 18px;
-  animation: wave 1.5s ease infinite;
-  display: inline-block;
-  transform-origin: 70% 70%;
-}
-
-@keyframes wave {
-  0%, 100% { transform: rotate(0); }
-  20% { transform: rotate(14deg); }
-  40% { transform: rotate(-8deg); }
-  60% { transform: rotate(14deg); }
-  80% { transform: rotate(-4deg); }
-}
-
-.hero-subtitle {
-  margin-top: 6px;
-  font-size: 20px;
-  font-weight: 700;
-  color: #fff;
-  letter-spacing: 0.5px;
-}
-
-.hero-stats {
-  display: flex;
-  margin-top: 20px;
   background: rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  padding: 16px 0;
   backdrop-filter: blur(10px);
-  border-radius: 16px;
-  padding: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .stat-item {
@@ -312,277 +202,244 @@ onMounted(async () => {
 .stat-value {
   font-size: 24px;
   font-weight: 700;
-  color: #fff;
-  line-height: 1.2;
-}
-
-.stat-unit {
-  font-size: 12px;
-  font-weight: 400;
-  margin-left: 2px;
-  opacity: 0.85;
+  margin-bottom: 4px;
 }
 
 .stat-label {
-  margin-top: 4px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.8);
+  opacity: 0.85;
 }
 
 .stat-divider {
   width: 1px;
-  background: rgba(255, 255, 255, 0.2);
-  margin: 4px 0;
+  height: 30px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 16px 12px;
+}
+
+.section-title h3 {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0;
+  color: #323233;
+}
+
+.more {
+  font-size: 13px;
+  color: #969799;
 }
 
 .progress-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
+  padding: 0 16px;
 }
 
 .progress-card {
   border-radius: 16px;
-  padding: 14px;
+  padding: 16px;
   color: #fff;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s ease;
-  cursor: pointer;
-}
-
-.progress-card:active {
-  transform: scale(0.97);
+  min-height: 130px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 8px;
 }
 
 .card-icon {
-  font-size: 26px;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+  font-size: 24px;
 }
 
-.status-tag {
-  padding: 2px 8px;
-  border-radius: 10px;
+.card-status {
   font-size: 11px;
-  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.25);
   backdrop-filter: blur(4px);
 }
 
-.status-passed {
-  background: rgba(255, 255, 255, 0.28);
+.card-status.passed {
+  background: rgba(255, 255, 255, 0.9);
+  color: #07c160;
 }
 
-.status-training {
-  background: rgba(255, 255, 255, 0.28);
+.card-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 2px;
 }
 
-.status-pending {
-  background: rgba(255, 255, 255, 0.25);
-}
-
-.card-body {
-  margin-top: 10px;
-}
-
-.card-name {
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.card-fullname {
-  margin-top: 2px;
+.card-subtitle {
   font-size: 12px;
   opacity: 0.85;
+  margin-bottom: 10px;
 }
 
-.card-footer {
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
-  font-size: 12px;
-}
-
-.pass-info {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  opacity: 0.95;
-}
-
-.training-bar {
-  width: 100%;
-}
-
-.bar-bg {
+.progress-bar {
   height: 6px;
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.3);
   border-radius: 3px;
   overflow: hidden;
+  margin-top: auto;
 }
 
-.bar-fill {
+.progress-fill {
   height: 100%;
   background: #fff;
   border-radius: 3px;
-  transition: width 0.6s ease;
+  transition: width 0.3s;
 }
 
-.bar-text {
-  margin-top: 6px;
+.hours-text {
   font-size: 11px;
   opacity: 0.9;
+  margin-top: 6px;
 }
 
-.pending-text {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  opacity: 0.85;
+.pass-info {
+  margin-top: auto;
 }
 
-.quick-actions {
+.pass-score {
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #07c160;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.quick-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
+  padding: 0 16px;
 }
 
-.action-card {
-  background: #fff;
-  border-radius: 14px;
-  padding: 14px 8px;
-  text-align: center;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
-  cursor: pointer;
-  transition: transform 0.2s ease;
+.quick-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 0;
 }
 
-.action-card:active {
-  transform: scale(0.95);
-}
-
-.action-icon-wrap {
+.quick-icon {
   width: 44px;
   height: 44px;
-  margin: 0 auto;
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
+  font-size: 20px;
 }
 
-.badge-tag {
-  position: absolute;
-  top: -4px;
-  right: -8px;
-  background: #ee0a24;
-  color: #fff;
-  font-size: 10px;
-  padding: 1px 5px;
-  border-radius: 8px;
-  font-weight: 500;
+.bg-blue {
+  background: linear-gradient(135deg, #e8f3ff 0%, #d0e8ff 100%);
 }
 
-.action-name {
-  margin-top: 8px;
+.bg-orange {
+  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+}
+
+.bg-green {
+  background: linear-gradient(135deg, #e8f8ef 0%, #c8eed8 100%);
+}
+
+.bg-purple {
+  background: linear-gradient(135deg, #f3e8ff 0%, #e0c8ff 100%);
+}
+
+.quick-item span {
   font-size: 12px;
-  color: #323233;
-  font-weight: 500;
+  color: #646566;
 }
 
-.upcoming-courses {
+.upcoming-list {
+  padding: 0 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
-.course-card {
+.upcoming-card {
   background: #fff;
   border-radius: 14px;
-  padding: 14px;
+  padding: 16px;
   display: flex;
-  gap: 14px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
-  cursor: pointer;
-  transition: transform 0.2s ease;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
-.course-card:active {
-  transform: scale(0.98);
-}
-
-.course-left {
-  flex-shrink: 0;
-}
-
-.course-date {
+.upcoming-date {
   width: 56px;
-  height: 64px;
-  background: linear-gradient(135deg, #1989fa 0%, #3da5ff 100%);
-  border-radius: 12px;
-  color: #fff;
   text-align: center;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  box-shadow: 0 2px 8px rgba(25, 137, 250, 0.3);
+  background: #f7f8fa;
+  border-radius: 12px;
+  padding: 8px 0;
+}
+
+.date-day {
+  font-size: 20px;
+  font-weight: 700;
+  color: #323233;
 }
 
 .date-month {
   font-size: 11px;
-  opacity: 0.9;
+  color: #969799;
 }
 
-.date-day {
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.course-right {
-  flex: 1;
-  min-width: 0;
-}
-
-.course-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: #323233;
-}
-
-.coach-avatar {
-  font-size: 18px;
-}
-
-.coach-name {
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.subject-tag {
-  margin-left: 4px;
-  background: rgba(25, 137, 250, 0.1);
-  color: #1989fa;
+.date-weekday {
   font-size: 11px;
-  padding: 1px 6px;
-  border-radius: 4px;
+  color: #969799;
+}
+
+.upcoming-info {
+  flex: 1;
+}
+
+.upcoming-time {
+  font-size: 15px;
+  font-weight: 600;
+  color: #323233;
+  margin-bottom: 4px;
+}
+
+.upcoming-coach {
+  font-size: 13px;
+  color: #646566;
+  margin-bottom: 4px;
+}
+
+.upcoming-location {
+  font-size: 12px;
+  color: #969799;
+}
+
+.upcoming-status {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 12px;
   font-weight: 500;
 }
 
-.course-time,
-.course-location {
-  color: #646566;
-  font-size: 12px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.upcoming-status.upcoming {
+  background: #e8f3ff;
+  color: #1989fa;
 }
 </style>
