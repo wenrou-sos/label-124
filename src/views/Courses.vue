@@ -123,10 +123,12 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showDialog, showToast, showConfirmDialog } from 'vant'
-import { courses, cancelCourse, isWithinCancelWindow, coaches } from '../mock'
+import { listCourses, cancelCourse as apiCancelCourse } from '../api/course'
+import { getCoach } from '../api/coach'
+import { getMeta } from '../api/common'
 
 const router = useRouter()
 
@@ -138,6 +140,20 @@ const tabs = [
 ]
 
 const activeTab = ref('all')
+const courses = ref([])
+const cancelWindowHours = ref(2)
+
+async function loadCourses() {
+  try {
+    const status = activeTab.value === 'all' ? undefined : activeTab.value
+    const data = await listCourses(status)
+    courses.value = Array.isArray(data) ? data : []
+  } catch (e) {
+    console.error('加载课程列表失败', e)
+  }
+}
+
+watch(activeTab, loadCourses)
 
 const StatusBadge = {
   props: ['status'],
@@ -151,10 +167,7 @@ const StatusBadge = {
 }
 
 const filteredCourses = computed(() => {
-  let list = [...courses]
-  if (activeTab.value !== 'all') {
-    list = list.filter((c) => c.status === activeTab.value)
-  }
+  let list = [...courses.value]
   return list.sort((a, b) => {
     const priority = { upcoming: 0, completed: 1, cancelled: 2 }
     if (priority[a.status] !== priority[b.status]) {
@@ -175,8 +188,8 @@ const emptyText = computed(() => {
 })
 
 function getCountByTab(key) {
-  if (key === 'all') return courses.length
-  return courses.filter((c) => c.status === key).length
+  if (key === 'all') return courses.value.length
+  return courses.value.filter((c) => c.status === key).length
 }
 
 function formatDatePart(dateStr) {
@@ -188,9 +201,26 @@ function formatDatePart(dateStr) {
   }
 }
 
-function handleCall(course) {
-  const coach = coaches.find((c) => c.id === course.coachId)
-  const phone = coach ? coach.phone : '暂无电话'
+function isWithinCancelWindow(dateStr, timeStr) {
+  const [h, m] = timeStr.split(':').map(Number)
+  const courseTime = new Date(dateStr)
+  courseTime.setHours(h, m, 0, 0)
+  const now = new Date()
+  const diff = courseTime.getTime() - now.getTime()
+  const hoursMs = cancelWindowHours.value * 60 * 60 * 1000
+  return diff >= hoursMs
+}
+
+async function handleCall(course) {
+  let phone = course.coachPhone
+  if (!phone) {
+    try {
+      const coach = await getCoach(course.coachId)
+      phone = coach ? coach.phone : '暂无电话'
+    } catch (e) {
+      phone = '暂无电话'
+    }
+  }
   showDialog({
     title: '联系教练',
     message: `${course.coachName}：${phone}`,
@@ -205,10 +235,10 @@ async function handleCancel(course) {
 
   if (canCancelFree) {
     title = '确认取消预约？'
-    message = '距离课程开始还有2小时以上，可免费取消，不扣除学分。'
+    message = `距离课程开始还有${cancelWindowHours.value}小时以上，可免费取消，不扣除学分。`
   } else {
     title = '超时取消提醒'
-    message = '距离课程开始不足2小时，取消将扣除50学分或扣除本次课时费，请确认是否继续取消？'
+    message = `距离课程开始不足${cancelWindowHours.value}小时，取消将扣除50学分或扣除本次课时费，请确认是否继续取消？`
   }
 
   try {
@@ -219,12 +249,25 @@ async function handleCancel(course) {
       confirmButtonColor: canCancelFree ? undefined : '#ee0a24',
       cancelButtonText: '再想想',
     })
-    cancelCourse(course.id)
+    await apiCancelCourse(course.id)
+    await loadCourses()
     showToast('取消成功')
   } catch (e) {
-    // 用户取消
+    // 用户取消或API失败
   }
 }
+
+onMounted(async () => {
+  try {
+    const metaData = await getMeta()
+    if (metaData && metaData.cancelWindowHours) {
+      cancelWindowHours.value = metaData.cancelWindowHours
+    }
+  } catch (e) {
+    console.error('加载meta失败', e)
+  }
+  await loadCourses()
+})
 </script>
 
 <style scoped>

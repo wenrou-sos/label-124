@@ -119,7 +119,8 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showSuccessToast, showToast } from 'vant'
-import { courses, addReview, markReviewed, reviews } from '../mock'
+import { getCourse } from '../api/course'
+import { submitReview as apiSubmitReview } from '../api/review'
 
 const route = useRoute()
 const router = useRouter()
@@ -185,26 +186,31 @@ async function submitReview() {
     return
   }
   submitting.value = true
-  await new Promise((r) => setTimeout(r, 800))
 
-  addReview({
-    coachId: course.value.coachId,
-    studentName: '我',
-    avatar: '🧑',
-    courseId,
-    ratings: { ...ratings },
-    content: comment.value,
-    tags: [...selectedTags.value],
-  })
-  markReviewed(courseId)
+  try {
+    await apiSubmitReview({
+      coachId: course.value.coachId,
+      courseId,
+      ratings: { ...ratings },
+      content: comment.value,
+      tags: [...selectedTags.value],
+    })
 
-  submitting.value = false
-  showSuccessToast('评价成功，感谢您的反馈！')
-  setTimeout(() => router.back(), 1000)
+    submitting.value = false
+    showSuccessToast('评价成功，感谢您的反馈！')
+    setTimeout(() => router.back(), 1000)
+  } catch (e) {
+    submitting.value = false
+    showToast(e.message || '评价失败，请重试')
+  }
 }
 
-onMounted(() => {
-  course.value = courses.find((c) => c.id === courseId)
+onMounted(async () => {
+  try {
+    course.value = await getCourse(courseId)
+  } catch (e) {
+    console.error('加载课程详情失败', e)
+  }
 })
 </script>
 

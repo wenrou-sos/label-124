@@ -99,7 +99,19 @@
 </template>
 
 <script setup>
-import { coaches } from '../mock'
+import { ref, onMounted } from 'vue'
+import { listCoaches } from '../api/coach'
+
+const coaches = ref([])
+
+onMounted(async () => {
+  try {
+    const data = await listCoaches()
+    coaches.value = Array.isArray(data) ? data : []
+  } catch (e) {
+    console.error('加载教练列表失败', e)
+  }
+})
 </script>
 
 <style scoped>

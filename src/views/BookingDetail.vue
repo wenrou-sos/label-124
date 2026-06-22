@@ -7,7 +7,7 @@
       @click-left="$router.back()"
     />
 
-    <div class="page-container">
+    <div class="page-container" v-if="coach">
       <div class="coach-header-card fade-in">
         <div class="header-left">
           <span class="coach-avatar">{{ coach.avatar }}</span>
@@ -173,20 +173,15 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showToast, showSuccessToast } from 'vant'
-import {
-  coaches,
-  generateSchedule,
-  addCourse,
-  formatDate,
-  hasBookedCourse,
-  MESSAGE_PRESETS,
-} from '../mock'
+import { getCoach, getCoachSchedule } from '../api/coach'
+import { bookCourse } from '../api/course'
+import { getMeta } from '../api/common'
 
 const route = useRoute()
 const router = useRouter()
 
 const coachId = Number(route.params.coachId)
-const coach = computed(() => coaches.find((c) => c.id === coachId) || coaches[0])
+const coach = ref(null)
 
 const schedule = ref([])
 const selectedDate = ref('')
@@ -195,6 +190,7 @@ const selectedSlot = ref(null)
 const selectedMessage = ref('')
 const customMessage = ref('')
 const bookingLoading = ref(false)
+const MESSAGE_PRESETS = ref([])
 
 const periods = [
   { key: 'morning', label: '早', name: '上午时段', color: 'linear-gradient(135deg, #ffd591 0%, #ffb84d 100%)' },
@@ -224,10 +220,6 @@ function handleSlotClick(slot) {
     showToast('该时段教练休息')
     return
   }
-  if (hasBookedCourse(coachId, selectedDate.value, slot.id)) {
-    showToast('您已预约该时段，请勿重复预约')
-    return
-  }
   selectedSlot.value = slot
   selectedMessage.value = ''
   customMessage.value = ''
@@ -244,33 +236,30 @@ function togglePreset(preset) {
 }
 
 async function confirmBooking() {
-  if (!selectedSlot.value) return
+  if (!selectedSlot.value || !coach.value) return
   bookingLoading.value = true
-  await new Promise((r) => setTimeout(r, 800))
 
-  const message = selectedMessage.value || customMessage.value
-  const newCourse = addCourse({
-    coachId: coach.value.id,
-    coachName: coach.value.name,
-    coachAvatar: coach.value.avatar,
-    date: selectedDate.value,
-    timeSlot: selectedSlot.value,
-    location:
-      coach.value.subject === 2 ? '阳光驾校训练场地A区 - 3号位' : '市区道路训练场',
-    subject: coach.value.subject,
-    message,
-  })
+  try {
+    const message = selectedMessage.value || customMessage.value
+    await bookCourse({
+      coachId: coach.value.id,
+      date: selectedDate.value,
+      timeSlot: selectedSlot.value,
+      location:
+        coach.value.subject === 2 ? '阳光驾校训练场地A区 - 3号位' : '市区道路训练场',
+      subject: coach.value.subject,
+      message,
+    })
 
-  bookingLoading.value = false
-  showMessagePopup.value = false
+    bookingLoading.value = false
+    showMessagePopup.value = false
 
-  if (newCourse) {
     const day = schedule.value.find((d) => d.date === selectedDate.value)
     if (day) {
       const slot = day.slots.find((s) => s.id === selectedSlot.value.id)
       if (slot) {
-        slot.bookedCount = Math.min(slot.maxCount, slot.bookedCount + 1)
-        if (slot.bookedCount >= slot.maxCount) {
+        slot.bookedCount = Math.min(slot.maxCount || 6, (slot.bookedCount || 0) + 1)
+        if (slot.bookedCount >= (slot.maxCount || 6)) {
           slot.status = 'full'
         }
       }
@@ -279,15 +268,29 @@ async function confirmBooking() {
     setTimeout(() => {
       router.push('/courses')
     }, 1000)
-  } else {
-    showToast('预约失败，该时段可能已被预约')
+  } catch (e) {
+    bookingLoading.value = false
+    showToast(e.message || '预约失败，该时段可能已被预约')
   }
 }
 
-onMounted(() => {
-  schedule.value = generateSchedule(coachId)
-  const firstAvailable = schedule.value.find((d) => !d.isRestDay)
-  if (firstAvailable) selectedDate.value = firstAvailable.date
+onMounted(async () => {
+  try {
+    const [coachData, scheduleData, metaData] = await Promise.all([
+      getCoach(coachId),
+      getCoachSchedule(coachId),
+      getMeta(),
+    ])
+    coach.value = coachData
+    schedule.value = Array.isArray(scheduleData) ? scheduleData : []
+    if (metaData && Array.isArray(metaData.messagePresets)) {
+      MESSAGE_PRESETS.value = metaData.messagePresets
+    }
+    const firstAvailable = schedule.value.find((d) => !d.isRestDay)
+    if (firstAvailable) selectedDate.value = firstAvailable.date
+  } catch (e) {
+    console.error('加载预约详情失败', e)
+  }
 })
 </script>
 

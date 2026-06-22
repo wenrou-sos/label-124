@@ -1,6 +1,6 @@
 <template>
   <div class="profile-page">
-    <div class="profile-header">
+    <div class="profile-header" v-if="studentInfo">
       <div class="header-bg"></div>
       <div class="header-content">
         <div class="user-row">
@@ -165,7 +165,7 @@
             <div class="review-top">
               <div class="review-left">
                 <van-rate :model-value="getAvg(review)" :count="5" size="13" color="#ffb300" readonly />
-                <span class="review-course">科{{ courses.find(c => c.id === review.courseId)?.subject || 2 }}</span>
+                <span class="review-course">科{{ getReviewSubject(review) }}</span>
               </div>
               <span class="review-date">{{ review.date }}</span>
             </div>
@@ -182,17 +182,25 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { showToast } from 'vant'
-import { studentInfo, subjectProgress, reviews, courses } from '../mock'
+import { getStudentProfile, getStudentProgress } from '../api/student'
+import { listCourses } from '../api/course'
 
-const myReviews = computed(() => {
-  return reviews.filter((r) => r.studentName === '我')
-})
+const studentInfo = ref(null)
+const subjectProgress = ref([])
+const myReviews = ref([])
+const courseList = ref([])
 
 function getAvg(review) {
   const vals = Object.values(review.ratings)
   return vals.reduce((a, b) => a + b, 0) / vals.length
+}
+
+function getReviewSubject(review) {
+  if (review.subject) return review.subject
+  const course = courseList.value.find((c) => c.id === review.courseId)
+  return course ? course.subject : 2
 }
 
 function tip(name) {
@@ -202,6 +210,21 @@ function tip(name) {
 function showSettings() {
   showToast('设置功能开发中')
 }
+
+onMounted(async () => {
+  try {
+    const [profile, progress, coursesData] = await Promise.all([
+      getStudentProfile(),
+      getStudentProgress(),
+      listCourses('completed'),
+    ])
+    studentInfo.value = profile
+    subjectProgress.value = progress
+    courseList.value = Array.isArray(coursesData) ? coursesData : []
+  } catch (e) {
+    console.error('加载个人中心数据失败', e)
+  }
+})
 </script>
 
 <style scoped>

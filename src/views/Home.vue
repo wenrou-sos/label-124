@@ -1,6 +1,6 @@
 <template>
   <div class="home-page">
-    <div class="hero-banner">
+    <div class="hero-banner" v-if="studentInfo">
       <div class="hero-bg"></div>
       <div class="hero-content">
         <div class="greeting">
@@ -143,12 +143,17 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { showToast } from 'vant'
 import { useRouter } from 'vue-router'
-import { studentInfo, subjectProgress, courses } from '../mock'
+import { getStudentProfile, getStudentProgress } from '../api/student'
+import { listCourses } from '../api/course'
 
 const router = useRouter()
+
+const studentInfo = ref(null)
+const subjectProgress = ref([])
+const upcomingCourseList = ref([])
 
 const StatusTag = {
   props: ['status', 'data'],
@@ -171,10 +176,7 @@ const StatusTag = {
 }
 
 const upcomingCourses = computed(() => {
-  return courses
-    .filter((c) => c.status === 'upcoming')
-    .sort((a, b) => new Date(a.date) - new Date(b.date))
-    .slice(0, 3)
+  return upcomingCourseList.value.slice(0, 2)
 })
 
 function formatShortDate(dateStr) {
@@ -196,6 +198,21 @@ function handleProgressClick(item) {
 function showTip() {
   showToast('功能开发中，敬请期待')
 }
+
+onMounted(async () => {
+  try {
+    const [profile, progress, courses] = await Promise.all([
+      getStudentProfile(),
+      getStudentProgress(),
+      listCourses('upcoming'),
+    ])
+    studentInfo.value = profile
+    subjectProgress.value = progress
+    upcomingCourseList.value = Array.isArray(courses) ? courses : []
+  } catch (e) {
+    console.error('加载首页数据失败', e)
+  }
+})
 </script>
 
 <style scoped>

@@ -221,24 +221,26 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { showSuccessToast, showToast } from 'vant'
 import {
-  simulatorInfo,
-  simulatorSessions,
-  bookedSimulators,
-  addBookedSimulator,
-  hasBookedSimulator,
-} from '../mock'
+  getSimulatorInfo,
+  getSimulatorSessions,
+  getMySimulatorBookings,
+  bookSimulator,
+} from '../api/simulator'
 
-const selectedSession = ref(simulatorSessions[0]?.id || '')
+const simulatorInfo = ref(null)
+const simulatorSessions = ref([])
+const bookedSimulators = ref([])
+const selectedSession = ref('')
 const openFaq = ref(null)
 const showConfirm = ref(false)
 const selectedSlot = ref(null)
 const confirmLoading = ref(false)
 
 const currentSession = computed(() => {
-  return simulatorSessions.find((s) => s.id === selectedSession.value)
+  return simulatorSessions.value.find((s) => s.id === selectedSession.value)
 })
 
 function formatShort(dateStr) {
@@ -277,10 +279,6 @@ function handleSlotClick(slot) {
     showToast('该时段不开放')
     return
   }
-  if (hasBookedSimulator(currentSession.value.date, slot.start)) {
-    showToast('您已预约该时段，请勿重复预约')
-    return
-  }
   selectedSlot.value = slot
   showConfirm.value = true
 }
@@ -288,20 +286,42 @@ function handleSlotClick(slot) {
 async function doConfirm() {
   if (!selectedSlot.value || !currentSession.value) return
   confirmLoading.value = true
-  await new Promise((r) => setTimeout(r, 900))
-  const newBooking = addBookedSimulator({
-    date: currentSession.value.date,
-    slot: { start: selectedSlot.value.start, end: selectedSlot.value.end },
-    price: selectedSlot.value.price,
-  })
-  confirmLoading.value = false
-  showConfirm.value = false
-  if (newBooking) {
+
+  try {
+    await bookSimulator(currentSession.value.date, {
+      id: selectedSlot.value.id,
+      start: selectedSlot.value.start,
+      end: selectedSlot.value.end,
+      price: selectedSlot.value.price,
+    })
+    confirmLoading.value = false
+    showConfirm.value = false
     showSuccessToast('预约支付成功')
-  } else {
-    showToast('预约失败，该时段可能已被预约')
+    const myBookings = await getMySimulatorBookings()
+    bookedSimulators.value = Array.isArray(myBookings) ? myBookings : []
+  } catch (e) {
+    confirmLoading.value = false
+    showToast(e.message || '预约失败，该时段可能已被预约')
   }
 }
+
+onMounted(async () => {
+  try {
+    const [info, sessions, myBookings] = await Promise.all([
+      getSimulatorInfo(),
+      getSimulatorSessions(),
+      getMySimulatorBookings(),
+    ])
+    simulatorInfo.value = info
+    simulatorSessions.value = Array.isArray(sessions) ? sessions : []
+    bookedSimulators.value = Array.isArray(myBookings) ? myBookings : []
+    if (simulatorSessions.value.length > 0) {
+      selectedSession.value = simulatorSessions.value[0].id
+    }
+  } catch (e) {
+    console.error('加载模拟器数据失败', e)
+  }
+})
 </script>
 
 <style scoped>

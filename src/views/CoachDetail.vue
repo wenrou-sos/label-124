@@ -143,14 +143,15 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { coaches, reviews } from '../mock'
+import { getCoach, getCoachReviews } from '../api/coach'
 
 const route = useRoute()
 const coachId = Number(route.params.coachId)
 
-const coach = computed(() => coaches.find((c) => c.id === coachId) || coaches[0])
+const coach = ref(null)
+const coachReviews = ref([])
 
 const ratingDims = [
   { key: 'attitude', label: '教学态度' },
@@ -159,14 +160,23 @@ const ratingDims = [
   { key: 'punctuality', label: '守时程度' },
 ]
 
-const coachReviews = computed(() => {
-  return reviews.filter((r) => r.coachId === coachId)
-})
-
 function getAvgRating(review) {
   const vals = Object.values(review.ratings)
   return vals.reduce((a, b) => a + b, 0) / vals.length
 }
+
+onMounted(async () => {
+  try {
+    const [coachData, reviewsData] = await Promise.all([
+      getCoach(coachId),
+      getCoachReviews(coachId),
+    ])
+    coach.value = coachData
+    coachReviews.value = Array.isArray(reviewsData) ? reviewsData : []
+  } catch (e) {
+    console.error('加载教练详情失败', e)
+  }
+})
 </script>
 
 <style scoped>
